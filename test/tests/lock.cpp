@@ -1,10 +1,15 @@
-#include <mutex>
-#include <thread>
-
 #include "gtest/gtest.h"
 #include "lock.hpp"
 
+#include <mutex>
+#include <thread>
+#include <type_traits>
+
 // Black box testing of the Mutex api doesn't allow for very interesting tests
+
+TEST(Mutex, ConstantSize) {
+  EXPECT_TRUE(std::is_standard_layout<Mutex>::value);
+}
 
 TEST(Mutex, LockUnlock) {
   Mutex m;
@@ -62,6 +67,10 @@ TEST(Mutex, LockBlock) {
 
   uint64_t elapsed = std::chrono::nanoseconds(stop - start).count() / 1000;
   EXPECT_GT(elapsed, 2 * thread_time);// one thread blocked the other
+}
+
+TEST(Condition, ConstantSize) {
+  EXPECT_TRUE(std::is_standard_layout<Condition>::value);
 }
 
 TEST(Condition, Broadcast) {
