@@ -69,6 +69,14 @@ TEST(Mutex, LockBlock) {
   EXPECT_GT(elapsed, 2 * thread_time);// one thread blocked the other
 }
 
+TEST(Mutex, Move) {
+  Mutex m;
+  Mutex m2(std::move(m));
+  EXPECT_THROW(m.lock(), std::runtime_error);
+  EXPECT_THROW(m.unlock(), std::runtime_error);
+  EXPECT_NO_THROW(m2.lock());
+  EXPECT_NO_THROW(m2.unlock());
+}
 TEST(Condition, ConstantSize) {
   EXPECT_TRUE(std::is_standard_layout<Condition>::value);
 }
@@ -177,3 +185,12 @@ TEST(Condition, LoopWaitBroadcast) {
   EXPECT_EQ(t2_count, iterations);
 }
 
+TEST(Condition, Move) {
+  Condition r;
+  Condition r2(std::move(r));
+  Mutex m;
+  std::lock_guard<Mutex> lock(m);
+  EXPECT_THROW(r.wait(m), std::runtime_error);
+  EXPECT_THROW(r.broadcast(), std::runtime_error);
+  EXPECT_NO_THROW(r2.broadcast());
+}

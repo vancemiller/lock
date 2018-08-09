@@ -9,6 +9,7 @@ class Mutex {
   private:
     friend class Condition;
     pthread_mutex_t mutex;
+    bool moved = false;
   public:
     Mutex(void) {
       pthread_mutexattr_t attr;
@@ -25,17 +26,23 @@ class Mutex {
     }
 
     ~Mutex(void) {
-      if (pthread_mutex_destroy(&mutex) != 0)
+      if (!moved && pthread_mutex_destroy(&mutex) != 0)
         std::cerr << "WARNING: Failed to destroy pthread mutex" << std::endl;
     }
 
+    Mutex(Mutex& o) = delete;
+    Mutex(const Mutex& o) = delete;
+    Mutex(Mutex&& o) : mutex(o.mutex) { o.moved = true; }
+
     void lock(void) {
+      if (moved) throw std::runtime_error("Mutex is not valid");
       int err = pthread_mutex_lock(&mutex);
       if (err)
         throw std::system_error(err, std::generic_category(), "pthread_mutex_lock failed");
     }
 
     void unlock(void) {
+      if (moved) throw std::runtime_error("Mutex is not valid");
       int err = pthread_mutex_unlock(&mutex);
       if (err)
         throw std::system_error(err, std::generic_category(), "pthread_mutex_unlock failed");
@@ -45,6 +52,7 @@ class Mutex {
 class Condition {
   private:
     pthread_cond_t condition;
+    bool moved = false;
   public:
     Condition(void) {
       pthread_condattr_t attr;
@@ -60,18 +68,24 @@ class Condition {
     }
 
     ~Condition(void) {
-      if (pthread_cond_destroy(&condition) != 0)
+      if (!moved && pthread_cond_destroy(&condition) != 0)
         std::cerr << "WARNING: Failed to destroy pthread cond" << std::endl;
     }
 
+    Condition(Condition& o) = delete;
+    Condition(const Condition& o) = delete;
+    Condition(Condition&& o) : condition(o.condition) { o.moved = true; }
+
     // call with locked mutex. Unlocked during wait, locked after wait
     void wait(Mutex& mutex) {
+      if (moved) throw std::runtime_error("Condition is not valid");
       int err = pthread_cond_wait(&condition, &mutex.mutex);
       if (err)
         throw std::system_error(err, std::generic_category(), "pthread_cond_wait failed");
     }
 
     void broadcast(void) {
+      if (moved) throw std::runtime_error("Condition is not valid");
       int err = pthread_cond_broadcast(&condition);
       if (err)
         throw std::system_error(err, std::generic_category(), "pthread_cond_broadcast failed");
