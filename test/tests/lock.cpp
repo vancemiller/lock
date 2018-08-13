@@ -185,6 +185,13 @@ TEST(Condition, LoopWaitBroadcast) {
   EXPECT_EQ(t2_count, iterations);
 }
 
+TEST(Condition, Timeout) {
+  Condition neverSignalled;
+  Mutex m;
+  std::lock_guard<Mutex> lock(m);
+  neverSignalled.wait(m, 100);
+}
+
 TEST(Condition, Move) {
   Condition r;
   Condition r2(std::move(r));

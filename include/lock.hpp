@@ -76,12 +76,28 @@ class Condition {
     Condition(const Condition& o) = delete;
     Condition(Condition&& o) : condition(o.condition) { o.moved = true; }
 
-    // call with locked mutex. Unlocked during wait, locked after wait
-    void wait(Mutex& mutex) {
+    /**
+     * Waitis for the condition to be signalled by a call to broadcast.
+     * Call with locked mutex. Mutex is unlocked while waiting on the condition.
+     * When the condition is signalled and the wait returns the mutex is locked.
+     *
+     * Timeout: -1 to wait forever, otherwise wait returns false if the timeout expires before
+     * the condition has been signalled.
+     */
+    bool wait(Mutex& mutex, int timeout_ms=-1) {
       if (moved) throw std::runtime_error("Condition is not valid");
-      int err = pthread_cond_wait(&condition, &mutex.mutex);
-      if (err)
-        throw std::system_error(err, std::generic_category(), "pthread_cond_wait failed");
+      int err;
+      if (timeout_ms == -1) {
+        err = pthread_cond_wait(&condition, &mutex.mutex);
+      } else {
+        timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += timeout_ms * 1000000;
+        err = pthread_cond_timedwait(&condition, &mutex.mutex, &ts);
+      }
+      if (err == ETIMEDOUT) return false;
+      if (err) throw std::system_error(err, std::generic_category(), "pthread_cond_wait failed");
+      return true;
     }
 
     void broadcast(void) {
