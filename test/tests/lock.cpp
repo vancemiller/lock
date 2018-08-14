@@ -3,13 +3,9 @@
 
 #include <mutex>
 #include <thread>
-#include <type_traits>
 
+namespace wrapper {
 // Black box testing of the Mutex api doesn't allow for very interesting tests
-
-TEST(Mutex, ConstantSize) {
-  EXPECT_TRUE(std::is_standard_layout<Mutex>::value);
-}
 
 TEST(Mutex, LockUnlock) {
   Mutex m;
@@ -72,13 +68,8 @@ TEST(Mutex, LockBlock) {
 TEST(Mutex, Move) {
   Mutex m;
   Mutex m2(std::move(m));
-  EXPECT_THROW(m.lock(), std::runtime_error);
-  EXPECT_THROW(m.unlock(), std::runtime_error);
   EXPECT_NO_THROW(m2.lock());
   EXPECT_NO_THROW(m2.unlock());
-}
-TEST(Condition, ConstantSize) {
-  EXPECT_TRUE(std::is_standard_layout<Condition>::value);
 }
 
 TEST(Condition, Broadcast) {
@@ -197,7 +188,6 @@ TEST(Condition, Move) {
   Condition r2(std::move(r));
   Mutex m;
   std::lock_guard<Mutex> lock(m);
-  EXPECT_THROW(r.wait(m), std::runtime_error);
-  EXPECT_THROW(r.broadcast(), std::runtime_error);
   EXPECT_NO_THROW(r2.broadcast());
 }
+} // namespace wrapper
