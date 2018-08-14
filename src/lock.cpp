@@ -32,6 +32,7 @@ Mutex::~Mutex(void) {
 Mutex::Mutex(Mutex&& o) : mutex(std::move(o.mutex)) {}
 
 void Mutex::lock(void) {
+  if (!mutex) throw std::runtime_error("mutex deleted");
   int err = pthread_mutex_lock(mutex.get());
   if (err) throw std::system_error(err, std::generic_category(), "pthread_mutex_lock failed");
   if (!mutex) throw std::runtime_error("mutex deleted");
