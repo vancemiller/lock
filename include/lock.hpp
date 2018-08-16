@@ -2,13 +2,13 @@
 #define LOCKS_HPP
 
 #include <pthread.h>
-#include <memory>
 
 namespace wrapper {
 class Mutex {
   private:
     friend class Condition;
-    std::unique_ptr<pthread_mutex_t> mutex;
+    pthread_mutex_t mutex;
+    bool moved = false;
   public:
     Mutex(void);
     Mutex(Mutex& o) = delete;
@@ -21,7 +21,8 @@ class Mutex {
 
 class Condition {
   private:
-    std::unique_ptr<pthread_cond_t> condition;
+    pthread_cond_t condition;
+    bool moved = false;
   public:
     Condition(void);
     Condition(Condition& o) = delete;
