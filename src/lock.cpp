@@ -7,9 +7,6 @@
 
 namespace wrapper {
 
-static_assert(std::is_standard_layout<Mutex>::value);
-static_assert(std::is_standard_layout<Condition>::value);
-
 Mutex::Mutex(void) {
   pthread_mutexattr_t attr;
   int err;
