@@ -67,20 +67,17 @@ bool Condition::wait(Mutex& mutex, int timeout_ms) {
   if (timeout_ms == -1) {
     err = pthread_cond_wait(&condition, &mutex.mutex);
   } else {
-    timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    long offset_ms = timeout_ms;
-    while (offset_ms > 1000) {
-      ts.tv_sec += 1;
-      offset_ms -= 1000;
+    timespec timeout;
+    clock_gettime(CLOCK_REALTIME, &timeout);
+
+    timeout.tv_sec += timeout_ms / 1000;
+    timeout.tv_nsec += (timeout_ms % 1000) * 1000000;
+    if (timeout.tv_nsec >= 1000000000) {
+      timeout.tv_sec += 1;
+      timeout.tv_nsec -= 1000000000;
     }
-    long offset_ns = offset_ms * 1000000;
-    ts.tv_nsec += offset_ns;
-    if (ts.tv_nsec >= 1000000000) {
-      ts.tv_sec += 1;
-      ts.tv_nsec -= 1000000000;
-    }
-    err = pthread_cond_timedwait(&condition, &mutex.mutex, &ts);
+    err = pthread_cond_timedwait(&condition, &mutex.mutex, &timeout);
+    clock_gettime(CLOCK_REALTIME, &timeout);
   }
   if (err == ETIMEDOUT) return false;
   if (err) throw std::system_error(err, std::generic_category(), "pthread_cond_wait failed");
