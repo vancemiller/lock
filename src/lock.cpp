@@ -5,67 +5,57 @@
 #include <pthread.h>
 #include <type_traits>
 
+#define CHECK_ERRNO(cmd, success)                                                                  \
+  {                                                                                                \
+    auto ret(cmd);                                                                                 \
+    if (ret != success) {                                                                          \
+      throw std::system_error(ret, std::generic_category(), #cmd);                                 \
+      exit(EXIT_FAILURE);                                                                          \
+    }                                                                                              \
+  }
+
 namespace wrapper {
 
 Mutex::Mutex(void) {
   pthread_mutexattr_t attr;
-  int err;
-  if ((err = pthread_mutexattr_init(&attr)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_mutex_attr_init failed");
-  if ((err = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) != 0)
-    throw std::system_error(err, std::generic_category(),
-        "pthread_mutexattr_setpshared failed");
-  if ((err = pthread_mutex_init(&mutex, &attr)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_mutex_init failed");
-  if ((err = pthread_mutexattr_destroy(&attr)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_mutexattr_destroy failed");
+  CHECK_ERRNO(pthread_mutexattr_init(&attr), 0);
+  CHECK_ERRNO(pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED), 0);
+  CHECK_ERRNO(pthread_mutex_init(&m, &attr), 0);
+  CHECK_ERRNO(pthread_mutexattr_destroy(&attr), 0);
 }
 
 Mutex::~Mutex(void) {
-  if (!moved && pthread_mutex_destroy(&mutex) != 0)
-    std::cerr << "WARNING: Failed to destroy pthread mutex" << std::endl;
+  int ret(pthread_mutex_destroy(&m));
+  if (ret)
+    fprintf(stderr, "pthread_mutex_destroy failed with error %s\n", strerror(errno));
 }
 
-Mutex::Mutex(Mutex&& o) : mutex(o.mutex) { o.moved = true; }
-
 void Mutex::lock(void) {
-  if (moved) throw std::runtime_error("invalid mutex");
-  int err = pthread_mutex_lock(&mutex);
-  if (err) throw std::system_error(err, std::generic_category(), "pthread_mutex_lock failed");
-  if (moved) throw std::runtime_error("invalid mutex");
+  CHECK_ERRNO(pthread_mutex_lock(&m), 0);
 }
 
 void Mutex::unlock(void) {
-  if (moved) throw std::runtime_error("invalid mutex");
-  int err = pthread_mutex_unlock(&mutex);
-  if (err) throw std::system_error(err, std::generic_category(), "pthread_mutex_unlock failed");
+  CHECK_ERRNO(pthread_mutex_unlock(&m), 0);
 }
 
 Condition::Condition(void) {
   pthread_condattr_t attr;
-  int err;
-  if ((err = pthread_condattr_init(&attr)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_condattr_init failed");
-  if ((err = pthread_condattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_condattr_setpshared failed");
-  if ((err = pthread_cond_init(&condition, &attr)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_cond_init failed");
-  if ((err = pthread_condattr_destroy(&attr)) != 0)
-    throw std::system_error(err, std::generic_category(), "pthread_condattr_destroy failed");
+  CHECK_ERRNO(pthread_condattr_init(&attr), 0);
+  CHECK_ERRNO(pthread_condattr_setpshared(&attr, PTHREAD_PROCESS_SHARED), 0);
+  CHECK_ERRNO(pthread_cond_init(&c, &attr), 0);
+  CHECK_ERRNO(pthread_condattr_destroy(&attr), 0);
 }
 
 Condition::~Condition(void) {
-  if (!moved && pthread_cond_destroy(&condition) != 0)
-    std::cerr << "WARNING: Failed to destroy pthread cond" << std::endl;
+  int ret(pthread_cond_destroy(&c));
+  if (ret)
+    fprintf(stderr, "pthread_cond_destroy failed with error %s\n", strerror(errno));
 }
 
-Condition::Condition(Condition&& o) : condition(o.condition) { o.moved = true; }
-
 bool Condition::wait(Mutex& mutex, int timeout_ms) {
-  if (moved) throw std::runtime_error("invalid condition");
-  int err;
+  int ret;
   if (timeout_ms == -1) {
-    err = pthread_cond_wait(&condition, &mutex.mutex);
+    ret = pthread_cond_wait(&c, &mutex.m);
   } else {
     timespec timeout;
     clock_gettime(CLOCK_REALTIME, &timeout);
@@ -76,18 +66,17 @@ bool Condition::wait(Mutex& mutex, int timeout_ms) {
       timeout.tv_sec += 1;
       timeout.tv_nsec -= 1000000000;
     }
-    err = pthread_cond_timedwait(&condition, &mutex.mutex, &timeout);
+    ret = pthread_cond_timedwait(&c, &mutex.m, &timeout);
     clock_gettime(CLOCK_REALTIME, &timeout);
   }
-  if (err == ETIMEDOUT) return false;
-  if (err) throw std::system_error(err, std::generic_category(), "pthread_cond_wait failed");
-  if (moved) throw std::runtime_error("invalid condition");
+  if (ret == ETIMEDOUT) return false;
+  if (ret) throw std::system_error(ret, std::generic_category(), "pthread_cond_wait failed");
   return true;
 }
 
 void Condition::broadcast(void) {
-  if (moved) throw std::runtime_error("invalid condition");
-  int err = pthread_cond_broadcast(&condition);
-  if (err) throw std::system_error(err, std::generic_category(), "pthread_cond_broadcast failed");
+  CHECK_ERRNO(pthread_cond_broadcast(&c), 0);
 }
 } // namespace wrapper
+
+#undef CHECK_ERRNO

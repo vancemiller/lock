@@ -65,13 +65,6 @@ TEST(Mutex, LockBlock) {
   EXPECT_GT(elapsed, 2 * thread_time);// one thread blocked the other
 }
 
-TEST(Mutex, Move) {
-  Mutex m;
-  Mutex m2(std::move(m));
-  EXPECT_NO_THROW(m2.lock());
-  EXPECT_NO_THROW(m2.unlock());
-}
-
 TEST(Condition, Broadcast) {
   Condition c_cond;
   EXPECT_NO_THROW(c_cond.broadcast());
@@ -183,11 +176,4 @@ TEST(Condition, Timeout) {
   neverSignalled.wait(m, 100);
 }
 
-TEST(Condition, Move) {
-  Condition r;
-  Condition r2(std::move(r));
-  Mutex m;
-  std::lock_guard<Mutex> lock(m);
-  EXPECT_NO_THROW(r2.broadcast());
-}
 } // namespace wrapper

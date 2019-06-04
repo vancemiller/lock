@@ -7,13 +7,12 @@ namespace wrapper {
 class Mutex {
   private:
     friend class Condition;
-    pthread_mutex_t mutex;
-    bool moved = false;
+    pthread_mutex_t m;
   public:
     Mutex(void);
     Mutex(Mutex& o) = delete;
     Mutex(const Mutex& o) = delete;
-    Mutex(Mutex&& o);
+    Mutex(Mutex&& o) = delete;
     ~Mutex(void);
     void lock(void);
     void unlock(void);
@@ -21,13 +20,12 @@ class Mutex {
 
 class Condition {
   private:
-    pthread_cond_t condition;
-    bool moved = false;
+    pthread_cond_t c;
   public:
     Condition(void);
     Condition(Condition& o) = delete;
     Condition(const Condition& o) = delete;
-    Condition(Condition&& o);
+    Condition(Condition&& o) = delete;
     ~Condition(void);
 
     /**
